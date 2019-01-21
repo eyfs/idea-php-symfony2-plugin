@@ -3,6 +3,7 @@ package fr.adrienbrault.idea.symfony2plugin.translation;
 import com.intellij.patterns.PlatformPatterns;
 import com.intellij.psi.*;
 import com.intellij.util.ProcessingContext;
+import com.jetbrains.php.lang.psi.elements.FunctionReference;
 import com.jetbrains.php.lang.psi.elements.MethodReference;
 import com.jetbrains.php.lang.psi.elements.ParameterList;
 import com.jetbrains.php.lang.psi.elements.StringLiteralExpression;
@@ -12,6 +13,8 @@ import fr.adrienbrault.idea.symfony2plugin.util.ParameterBag;
 import fr.adrienbrault.idea.symfony2plugin.util.PhpElementsUtil;
 import fr.adrienbrault.idea.symfony2plugin.util.PsiElementUtils;
 import org.jetbrains.annotations.NotNull;
+
+import javax.swing.*;
 
 /**
  * @author Daniel Espendiller <daniel@espendiller.net>
@@ -33,6 +36,15 @@ public class TranslationReferenceContributor extends PsiReferenceContributor {
 
                     ParameterList parameterList = (ParameterList) psiElement.getContext();
                     PsiElement methodReference = parameterList.getContext();
+
+                    if (methodReference instanceof FunctionReference) {
+                        if ("t".equals(((FunctionReference) methodReference).getName())) {
+                            String domain = "messages";
+
+                            return new PsiReference[]{ new TranslationReference((StringLiteralExpression) psiElement, domain) };
+                        }
+                    }
+
                     if (!(methodReference instanceof MethodReference)) {
                         return new PsiReference[0];
                     }
@@ -56,10 +68,13 @@ public class TranslationReferenceContributor extends PsiReferenceContributor {
                     }
 
                     if(currentIndex.getIndex() == 0) {
-                        String domain = PsiElementUtils.getMethodParameterAt(parameterList, domainParameter);
+                        String key = PsiElementUtils.getMethodParameterAt(parameterList, 0);
+                        String domain;
 
-                        if(domain == null) {
+                        if(key.indexOf('.') == -1) {
                             domain = "messages";
+                        } else {
+                            domain = key.substring(0, key.indexOf('.'));
                         }
 
                         return new PsiReference[]{ new TranslationReference((StringLiteralExpression) psiElement, domain) };

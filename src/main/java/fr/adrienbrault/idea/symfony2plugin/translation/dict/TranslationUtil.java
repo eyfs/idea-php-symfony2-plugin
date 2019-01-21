@@ -124,34 +124,38 @@ public class TranslationUtil {
             return true;
         };
 
-        FileBasedIndex.getInstance().getFilesWithKey(TranslationStubIndex.KEY, new HashSet<>(Collections.singletonList(domain)), virtualFile -> {
-            // prevent duplicate targets and dont walk same file twice
-            if(virtualFilesFound.contains(virtualFile)) {
+        Collection<String> allDomains = FileBasedIndex.getInstance().getAllKeys(TranslationStubIndex.KEY, project);
+
+        for (String domainKey: allDomains) {
+            FileBasedIndex.getInstance().getFilesWithKey(TranslationStubIndex.KEY, new HashSet<>(Collections.singletonList(domainKey)), virtualFile -> {
+                // prevent duplicate targets and dont walk same file twice
+                if(virtualFilesFound.contains(virtualFile)) {
+                    return true;
+                }
+
+                PsiFile psiFile = PsiManager.getInstance(project).findFile(virtualFile);
+                if(psiFile == null) {
+                    return true;
+                }
+
+                if(psiFile instanceof YAMLFile) {
+                    YamlTranslationVisitor.collectFileTranslations((YAMLFile) psiFile, translationCollector);
+                } else if(isSupportedXlfFile(psiFile)) {
+                    // fine: xlf registered as XML file. try to find source value
+                    psiFoundElements.addAll(getTargetForXlfAsXmlFile((XmlFile) psiFile, translationKey));
+                } else if(("xlf".equalsIgnoreCase(virtualFile.getExtension()) || "xliff".equalsIgnoreCase(virtualFile.getExtension()))) {
+                    // xlf are plain text because not supported by jetbrains
+                    // for now we can only set file target
+                    psiFoundElements.addAll(FileBasedIndex.getInstance()
+                            .getValues(TranslationStubIndex.KEY, domainKey, GlobalSearchScope.filesScope(project, Collections.singletonList(virtualFile))).stream()
+                            .filter(string -> string.contains(translationKey)).map(string -> psiFile)
+                            .collect(Collectors.toList())
+                    );
+                }
+
                 return true;
-            }
-
-            PsiFile psiFile = PsiManager.getInstance(project).findFile(virtualFile);
-            if(psiFile == null) {
-                return true;
-            }
-
-            if(psiFile instanceof YAMLFile) {
-                YamlTranslationVisitor.collectFileTranslations((YAMLFile) psiFile, translationCollector);
-            } else if(isSupportedXlfFile(psiFile)) {
-                // fine: xlf registered as XML file. try to find source value
-                psiFoundElements.addAll(getTargetForXlfAsXmlFile((XmlFile) psiFile, translationKey));
-            } else if(("xlf".equalsIgnoreCase(virtualFile.getExtension()) || "xliff".equalsIgnoreCase(virtualFile.getExtension()))) {
-                // xlf are plain text because not supported by jetbrains
-                // for now we can only set file target
-                psiFoundElements.addAll(FileBasedIndex.getInstance()
-                    .getValues(TranslationStubIndex.KEY, domain, GlobalSearchScope.filesScope(project, Collections.singletonList(virtualFile))).stream()
-                    .filter(string -> string.contains(translationKey)).map(string -> psiFile)
-                    .collect(Collectors.toList())
-                );
-            }
-
-            return true;
-        }, GlobalSearchScope.allScope(project));
+            }, GlobalSearchScope.allScope(project));
+        }
 
         return psiFoundElements.toArray(new PsiElement[psiFoundElements.size()]);
     }
@@ -246,40 +250,64 @@ public class TranslationUtil {
         return false;
     }
 
+    public static boolean hasTranslationKey(@NotNull Project project, String keyName) {
+
+        Collection<String> domains = FileBasedIndex.getInstance().getAllKeys(TranslationStubIndex.KEY, project);
+
+        for (String domain: domains) {
+            Set<String> domainMap = TranslationIndex.getInstance(project).getTranslationMap().getDomainMap(domain);
+            if (domainMap != null && domainMap.contains(keyName)) {
+                return true;
+            }
+
+            for (Set<String> keys : FileBasedIndex.getInstance().getValues(TranslationStubIndex.KEY, domain, GlobalSearchScope.allScope(project))) {
+                if (keys.contains(keyName)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     @NotNull
     public static List<LookupElement> getTranslationLookupElementsOnDomain(@NotNull Project project, @NotNull String domainName) {
 
-        Set<String> keySet = new HashSet<>();
-        List<Set<String>> test = FileBasedIndex.getInstance().getValues(TranslationStubIndex.KEY, domainName, GlobalSearchScope.allScope(project));
-        for(Set<String> keys: test ){
-            keySet.addAll(keys);
-        }
+        Collection<String> domains = FileBasedIndex.getInstance().getAllKeys(TranslationStubIndex.KEY, project);
 
         List<LookupElement> lookupElements = new ArrayList<>();
 
-        TranslationStringMap map = TranslationIndex.getInstance(project).getTranslationMap();
-        Collection<String> domainMap = map.getDomainMap(domainName);
-
-        if(domainMap != null) {
-
-            // php translation parser; are not weak and valid keys
-            for(String stringId : domainMap) {
-                lookupElements.add(new TranslatorLookupElement(stringId, domainName));
+        for (String domain: domains) {
+            Set<String> keySet = new HashSet<>();
+            List<Set<String>> test = FileBasedIndex.getInstance().getValues(TranslationStubIndex.KEY, domain, GlobalSearchScope.allScope(project));
+            for(Set<String> keys: test ){
+                keySet.addAll(keys);
             }
 
-            // attach weak translations keys on file index
-            for(String stringId : keySet) {
-                if(!domainMap.contains(stringId)) {
-                    lookupElements.add(new TranslatorLookupElement(stringId, domainName, true));
+            TranslationStringMap map = TranslationIndex.getInstance(project).getTranslationMap();
+            Collection<String> domainMap = map.getDomainMap(domain);
+
+            if(domainMap != null) {
+
+                // php translation parser; are not weak and valid keys
+                for(String stringId : domainMap) {
+                    lookupElements.add(new TranslatorLookupElement(stringId, domain));
                 }
+
+                // attach weak translations keys on file index
+                for(String stringId : keySet) {
+                    if(!domainMap.contains(stringId)) {
+                        lookupElements.add(new TranslatorLookupElement(stringId, domain, true));
+                    }
+                }
+
+                return lookupElements;
             }
 
-            return lookupElements;
-        }
-
-        // fallback on index
-        for(String stringId : keySet) {
-            lookupElements.add(new TranslatorLookupElement(stringId, domainName, true));
+            // fallback on index
+            for(String stringId : keySet) {
+                lookupElements.add(new TranslatorLookupElement(stringId, domain, true));
+            }
         }
 
         return lookupElements;
@@ -473,7 +501,8 @@ public class TranslationUtil {
             Element node = (Element) nodeList.item(i);
             String textContent = node.getTextContent();
             if(org.apache.commons.lang.StringUtils.isNotBlank(textContent)) {
-                consumer.consume(Pair.create(textContent, node));
+                // fixme: This is too greedy
+                //consumer.consume(Pair.create(textContent, node));
             }
 
             // <trans-unit id="1" resname="title.test">

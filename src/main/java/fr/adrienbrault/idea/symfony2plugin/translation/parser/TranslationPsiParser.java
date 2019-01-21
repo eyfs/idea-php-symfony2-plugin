@@ -124,6 +124,10 @@ public class TranslationPsiParser {
             PhpPsiElement translationKey = arrayHashElement.getKey();
             if(translationKey instanceof StringLiteralExpression) {
                 String transKey = ((StringLiteralExpression) translationKey).getContents();
+                if (transKey.indexOf('.') == -1 || transKey.indexOf(' ') != -1) {
+                    continue;
+                }
+
                 this.translationStringMap.addString(domain, transKey);
             }
         }

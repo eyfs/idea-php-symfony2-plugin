@@ -4,6 +4,7 @@ import com.intellij.codeInspection.LocalInspectionTool;
 import com.intellij.codeInspection.ProblemsHolder;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
+import com.jetbrains.php.lang.psi.elements.FunctionReference;
 import com.jetbrains.php.lang.psi.elements.MethodReference;
 import com.jetbrains.php.lang.psi.elements.ParameterList;
 import com.jetbrains.php.lang.psi.elements.StringLiteralExpression;
@@ -45,6 +46,12 @@ public class PhpTranslationKeyInspection extends LocalInspectionTool {
 
         ParameterList parameterList = (ParameterList) psiElement.getContext();
         PsiElement methodReference = parameterList.getContext();
+
+        if ("t".equals(((FunctionReference) methodReference).getName())) {
+            annotateTranslationKey((StringLiteralExpression) psiElement, "messages", holder);
+            return;
+        }
+
         if (!(methodReference instanceof MethodReference)) {
             return;
         }
@@ -90,7 +97,7 @@ public class PhpTranslationKeyInspection extends LocalInspectionTool {
         }
 
         // dont annotate non goto available keys
-        if(TranslationUtil.hasTranslationKey(psiElement.getProject(), keyName, domainName)) {
+        if(TranslationUtil.hasTranslationKey(psiElement.getProject(), keyName)) {
             return;
         }
 
