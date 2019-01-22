@@ -68,14 +68,7 @@ public class TranslationReferenceContributor extends PsiReferenceContributor {
                     }
 
                     if(currentIndex.getIndex() == 0) {
-                        String key = PsiElementUtils.getMethodParameterAt(parameterList, 0);
-                        String domain;
-
-                        if(key.indexOf('.') == -1) {
-                            domain = "messages";
-                        } else {
-                            domain = key.substring(0, key.indexOf('.'));
-                        }
+                        String domain = "messages";
 
                         return new PsiReference[]{ new TranslationReference((StringLiteralExpression) psiElement, domain) };
                     }

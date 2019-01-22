@@ -47,6 +47,10 @@ public class PhpTranslationKeyInspection extends LocalInspectionTool {
         ParameterList parameterList = (ParameterList) psiElement.getContext();
         PsiElement methodReference = parameterList.getContext();
 
+        if (!(methodReference instanceof FunctionReference)) {
+            return;
+        }
+
         if ("t".equals(((FunctionReference) methodReference).getName())) {
             annotateTranslationKey((StringLiteralExpression) psiElement, "messages", holder);
             return;
