@@ -120,7 +120,7 @@ public class TranslationKeyIntentionAndQuickFixAction extends IntentionAndQuickF
                 PsiFile selectedFile = list.getSelectedValue();
 
                 CommandProcessor.getInstance().executeCommand(selectedFile.getProject(), () -> ApplicationManager.getApplication().runWriteAction(() -> {
-                    TranslationInsertUtil.invokeTranslation(selectedFile, key, domain);
+                    TranslationInsertUtil.invokeTranslation(selectedFile, key, domain, "", domain);
                 }), "Translation insert " + selectedFile.getName(), null);
             })
             .createPopup()

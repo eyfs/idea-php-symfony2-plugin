@@ -23,17 +23,17 @@ import java.util.function.Function;
  */
 public class TranslationInsertUtil {
     @Nullable
-    public static PsiElement invokeTranslation(@NotNull final PsiFile psiFile, @NotNull final String keyName, @NotNull final String translation) {
+    public static PsiElement invokeTranslation(@NotNull final PsiFile psiFile, @NotNull final String keyName, @NotNull final String translation, String note, String domain) {
         if(psiFile instanceof YAMLFile) {
-            return invokeTranslation((YAMLFile) psiFile, keyName, translation);
+            return invokeTranslation((YAMLFile) psiFile, keyName, translation, note);
         } else if(psiFile instanceof XmlFile && TranslationUtil.isSupportedXlfFile(psiFile)) {
-            return invokeTranslation((XmlFile) psiFile, keyName, translation);
+            return invokeTranslation((XmlFile) psiFile, keyName, translation, note, domain);
         }
 
         return null;
     }
 
-    private static PsiElement invokeTranslation(@NotNull final YAMLFile yamlFile, @NotNull final String keyName, @NotNull final String translation) {
+    private static PsiElement invokeTranslation(@NotNull final YAMLFile yamlFile, @NotNull final String keyName, @NotNull final String translation, String note) {
         String[] split = keyName.split("\\.");
         PsiElement psiElement = YamlHelper.insertKeyIntoFile(yamlFile, "'" + translation + "'", split);
         if(psiElement == null) {
@@ -52,7 +52,7 @@ public class TranslationInsertUtil {
     }
 
     @Nullable
-    public static XmlTag invokeTranslation(@NotNull final XmlFile xmlFile, @NotNull final String keyName, @NotNull final String translation) {
+    public static XmlTag invokeTranslation(@NotNull final XmlFile xmlFile, @NotNull final String keyName, @NotNull final String translation, String noteString, String domain) {
         XmlTag rootTag = xmlFile.getRootTag();
         if(rootTag == null) {
             return null;
@@ -63,27 +63,48 @@ public class TranslationInsertUtil {
             return null;
         }
 
-        XmlTag file = rootTag.findFirstSubTag("file");
+        XmlTag[] fileTags = rootTag.findSubTags("file");
+
+        XmlTag file = null;
+
+        for (XmlTag fileTag : fileTags) {
+            if (fileTag.getAttribute("original").getValue().equals(domain)) {
+                file = fileTag;
+            }
+        }
+
+        XmlElementFactory instance = XmlElementFactory.getInstance(xmlFile.getProject());
+
         if(file == null) {
-            return null;
+            XmlTag newFileTag = instance.createTagFromText("<file/>");
+            newFileTag.setAttribute("source-language", "en-GB");
+            newFileTag.setAttribute("datatype", "plaintext");
+            newFileTag.setAttribute("original", domain);
+
+            XmlTag newBodyTag = instance.createTagFromText("<body/>");
+            newFileTag.addSubTag(newBodyTag, true);
+
+            rootTag.addSubTag(newFileTag, false);
+
+            file = newFileTag;
         }
 
         // version="1.2"
         if(version.equalsIgnoreCase("1.2")) {
             Function<XmlTag, XmlTag> func12 = body -> {
-                XmlElementFactory instance = XmlElementFactory.getInstance(xmlFile.getProject());
 
                 XmlTag source = instance.createTagFromText("<source/>");
-                source.getValue().setText(keyName);
+                source.getValue().setText(translation);
 
-                XmlTag target = instance.createTagFromText("<target/>");
-                target.getValue().setText(translation);
+                XmlTag note = instance.createTagFromText("<note/>");
+                note.getValue().setText(noteString);
 
                 XmlTag transUnit = instance.createTagFromText("<trans-unit/>");
-                transUnit.setAttribute("id", String.valueOf(getIdForNewXlfUnit(body, "trans-unit")));
+                transUnit.setAttribute("id", keyName);
+                transUnit.setAttribute("resname", keyName);
 
                 transUnit.addSubTag(source, false);
-                transUnit.addSubTag(target, false);
+                transUnit.addSubTag(note, false);
 
                 return body.addSubTag(transUnit, false);
             };
@@ -94,7 +115,6 @@ public class TranslationInsertUtil {
             }
         } else if(version.equalsIgnoreCase("2.0")) {
             Function<XmlTag, XmlTag> func20 = body -> {
-                XmlElementFactory instance = XmlElementFactory.getInstance(xmlFile.getProject());
 
                 XmlTag source = instance.createTagFromText("<source/>");
                 source.getValue().setText(keyName);

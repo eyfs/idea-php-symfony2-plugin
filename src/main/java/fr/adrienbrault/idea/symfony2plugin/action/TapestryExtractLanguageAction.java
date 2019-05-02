@@ -1,11 +1,14 @@
 package fr.adrienbrault.idea.symfony2plugin.action;
 
 import com.intellij.codeInsight.lookup.LookupElement;
+import com.intellij.extapi.psi.PsiFileBase;
+import com.intellij.lang.ASTNode;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDocumentManager;
@@ -14,6 +17,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.xml.XmlTokenType;
 import com.intellij.util.containers.ContainerUtil;
+import com.jetbrains.php.lang.lexer.PhpTokenTypes;
 import com.jetbrains.twig.TwigFile;
 import fr.adrienbrault.idea.symfony2plugin.Symfony2Icons;
 import fr.adrienbrault.idea.symfony2plugin.Symfony2ProjectComponent;
@@ -25,17 +29,17 @@ import fr.adrienbrault.idea.symfony2plugin.translation.util.TranslationInsertUti
 import fr.adrienbrault.idea.symfony2plugin.util.IdeHelper;
 
 import java.awt.*;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * @author Daniel Espendiller <daniel@espendiller.net>
  */
-public class TwigExtractLanguageAction extends DumbAwareAction {
+public class TapestryExtractLanguageAction extends DumbAwareAction {
 
-    public TwigExtractLanguageAction() {
-        super("Extract Translation", "Extract Translation Key", Symfony2Icons.SYMFONY);
+    public TapestryExtractLanguageAction() {
+        super("Extract Tapestry Translation", "Extract Tapestry Translation Key", Symfony2Icons.SYMFONY);
     }
 
     public void update(AnActionEvent event) {
@@ -48,8 +52,8 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
 
         PsiFile psiFile = event.getData(PlatformDataKeys.PSI_FILE);
         if(!(psiFile instanceof TwigFile)) {
-            this.setStatus(event, false);
-            return;
+            //this.setStatus(event, false);
+            //return;
         }
 
         Editor editor = event.getData(PlatformDataKeys.EDITOR);
@@ -73,7 +77,10 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
 
         // <a title="TEXT">TEXT</a>
         IElementType elementType = psiElement.getNode().getElementType();
-        if(elementType == XmlTokenType.XML_DATA_CHARACTERS || elementType == XmlTokenType.XML_ATTRIBUTE_VALUE_TOKEN) {
+        if(elementType == XmlTokenType.XML_DATA_CHARACTERS
+                || elementType == XmlTokenType.XML_ATTRIBUTE_VALUE_TOKEN
+                || elementType == PhpTokenTypes.STRING_LITERAL
+                || elementType == PhpTokenTypes.STRING_LITERAL_SINGLE_QUOTE) {
             this.setStatus(event, true);
         } else {
             this.setStatus(event, false);
@@ -95,10 +102,10 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
 
         PsiFile psiFile = event.getData(PlatformDataKeys.PSI_FILE);
         if(!(psiFile instanceof TwigFile)) {
-            return;
+            //return;
         }
 
-        final Project project = ((TwigFile) psiFile).getProject();
+        final Project project = ((PsiFileBase) psiFile).getProject();
         String translationText = editor.getSelectionModel().getSelectedText();
 
         int startOffset;
@@ -117,13 +124,21 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
             }
 
             IElementType elementType = psiElement.getNode().getElementType();
-            if(!(elementType == XmlTokenType.XML_DATA_CHARACTERS || elementType == XmlTokenType.XML_ATTRIBUTE_VALUE_TOKEN)) {
+            if(!(elementType == XmlTokenType.XML_DATA_CHARACTERS
+                    || elementType == XmlTokenType.XML_ATTRIBUTE_VALUE_TOKEN
+                    || elementType == PhpTokenTypes.STRING_LITERAL
+                    || elementType == PhpTokenTypes.STRING_LITERAL_SINGLE_QUOTE)) {
                 return;
             }
 
             startOffset = psiElement.getTextRange().getStartOffset();
             endOffset = psiElement.getTextRange().getEndOffset();
             translationText = psiElement.getText();
+
+            if (elementType == PhpTokenTypes.STRING_LITERAL || elementType == PhpTokenTypes.STRING_LITERAL_SINGLE_QUOTE) {
+                startOffset--;
+                endOffset++;
+            }
         }
 
         final Set<String> domainNames = TranslationUtil.getTranslationDomainLookupElements(project).stream()
@@ -154,9 +169,9 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
         final int finalStartOffset = startOffset;
         final int finalEndOffset = endOffset;
         final String finalTranslationText = translationText;
-        TranslatorKeyExtractorDialog extractorDialog = new TranslatorKeyExtractorDialog(project, psiFile, domainNames, defaultKey, reselectedDomain, new MyOnOkCallback(project, editor, defaultDomain, finalStartOffset, finalEndOffset, finalTranslationText));
+        TranslatorKeyExtractorDialog extractorDialog = new TranslatorKeyExtractorDialog(project, psiFile, domainNames, defaultKey, reselectedDomain, new MyOnOkCallback(project, editor, defaultDomain, finalStartOffset, finalEndOffset, finalTranslationText, transDefaultScope));
 
-        extractorDialog.setTitle("Symfony: Extract Translation Key");
+        extractorDialog.setTitle("Tapestry: Extract Translation Key");
         extractorDialog.setMinimumSize(new Dimension(600, 200));
         extractorDialog.pack();
         extractorDialog.setLocationRelativeTo(editor.getComponent());
@@ -172,29 +187,33 @@ public class TwigExtractLanguageAction extends DumbAwareAction {
         private final int finalStartOffset;
         private final int finalEndOffset;
         private final String finalTranslationText;
+        private final PsiElement psiElement;
 
-        MyOnOkCallback(Project project, Editor editor, String finalDefaultDomain, int finalStartOffset, int finalEndOffset, String finalTranslationText) {
+        MyOnOkCallback(Project project, Editor editor, String finalDefaultDomain, int finalStartOffset, int finalEndOffset, String finalTranslationText, PsiElement psiElement) {
             this.project = project;
             this.editor = editor;
             this.finalDefaultDomain = finalDefaultDomain;
             this.finalStartOffset = finalStartOffset;
             this.finalEndOffset = finalEndOffset;
             this.finalTranslationText = finalTranslationText;
+            this.psiElement = psiElement;
         }
 
         @Override
-        public void onClick(List<TranslationFileModel> files, final String keyName, final String domain, String note, boolean navigateTo) {
+        public void onClick(List<TranslationFileModel> files, final String keyName, final String domain, final String note, boolean navigateTo) {
             PsiDocumentManager.getInstance(project).doPostponedOperationsAndUnblockDocument(editor.getDocument());
 
             // insert Twig trans key
             CommandProcessor.getInstance().executeCommand(project, () -> ApplicationManager.getApplication().runWriteAction(() -> {
                 String insertString;
 
-                // check for file context domain
-                if(finalDefaultDomain.equals(domain)) {
-                    insertString = String.format("{{ '%s'|trans }}", keyName);
+                ASTNode astNode = psiElement.getNode();
+                IElementType elementType = astNode.getElementType();
+
+                if (elementType == PhpTokenTypes.STRING_LITERAL || elementType == PhpTokenTypes.STRING_LITERAL_SINGLE_QUOTE) {
+                    insertString = String.format("t('%s')", keyName);
                 } else {
-                    insertString = String.format("{{ '%s'|trans({}, '%s') }}", keyName, domain);
+                    insertString = String.format("{{ t('%s') }}", keyName);
                 }
 
                 editor.getDocument().replaceString(finalStartOffset, finalEndOffset, insertString);

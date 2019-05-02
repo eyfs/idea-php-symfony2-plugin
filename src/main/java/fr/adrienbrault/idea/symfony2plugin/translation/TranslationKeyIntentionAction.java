@@ -74,7 +74,7 @@ public class TranslationKeyIntentionAction extends BaseIntentionAction {
         }
 
         CommandProcessor.getInstance().executeCommand(psiFile.getProject(), () -> ApplicationManager.getApplication().runWriteAction(() -> {
-            TranslationInsertUtil.invokeTranslation(psiFile, keyName, keyName);
+            TranslationInsertUtil.invokeTranslation(psiFile, keyName, keyName, "", "");
         }), "Translation insert " + psiFile.getName(), null);
     }
 }

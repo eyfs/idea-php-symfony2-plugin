@@ -36,8 +36,8 @@ public class TranslatorKeyExtractorDialog extends JDialog {
     private JButton buttonOK;
     private JButton buttonCancel;
     private JTextField textTranslationKey;
+    private JTextField translationNote;
     private JPanel panelTableView;
-    private JComboBox comboBox1;
     private JCheckBox checkNavigateTo;
 
     private final ListTableModel<TranslationFileModel> listTableModel;
@@ -52,10 +52,6 @@ public class TranslatorKeyExtractorDialog extends JDialog {
         this.fileContext = fileContext;
         this.okCallback = okCallback;
 
-        for(String domain: domains) {
-            comboBox1.addItem(domain);
-        }
-
         if(defaultKey != null) {
             textTranslationKey.setText(defaultKey);
         }
@@ -67,15 +63,6 @@ public class TranslatorKeyExtractorDialog extends JDialog {
         buttonOK.addActionListener(e -> onOK());
 
         buttonCancel.addActionListener(e -> onCancel());
-
-        comboBox1.addItemListener(e -> {
-            if (e.getStateChange() == ItemEvent.SELECTED) {
-                Object item = e.getItem();
-                if(item instanceof String) {
-                    filterList((String) item);
-                }
-            }
-        });
 
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -94,7 +81,6 @@ public class TranslatorKeyExtractorDialog extends JDialog {
             new BooleanColumn("Create")
         );
 
-        comboBox1.setSelectedItem(defaultDomain);
         filterList(defaultDomain);
 
         TableView<TranslationFileModel> tableView = new TableView<>();
@@ -143,8 +129,10 @@ public class TranslatorKeyExtractorDialog extends JDialog {
                 }
             }
 
+            String domain = text.substring(0, text.indexOf('.'));
+
             if(psiFiles.size() > 0) {
-                okCallback.onClick(psiFiles, text, (String) comboBox1.getSelectedItem(), checkNavigateTo.isSelected());
+                okCallback.onClick(psiFiles, text, domain, translationNote.getText(), checkNavigateTo.isSelected());
                 dispose();
                 return;
             }
@@ -291,7 +279,7 @@ public class TranslatorKeyExtractorDialog extends JDialog {
 
 
     public interface OnOkCallback {
-        void onClick(List<TranslationFileModel> files, String keyName, String domain, boolean navigateTo);
+        void onClick(List<TranslationFileModel> files, String keyName, String domain, String note, boolean navigateTo);
     }
 
 }

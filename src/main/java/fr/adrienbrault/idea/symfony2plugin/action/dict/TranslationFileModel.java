@@ -12,7 +12,7 @@ public class TranslationFileModel {
 
     final private PsiFile psiFile;
     private int weight = 0;
-    private boolean enabled = false;
+    private boolean enabled = true;
     private SymfonyBundle symfonyBundle;
     private boolean boldness = false;
 
