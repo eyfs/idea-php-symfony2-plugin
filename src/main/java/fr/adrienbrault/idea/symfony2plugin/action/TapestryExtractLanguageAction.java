@@ -164,7 +164,7 @@ public class TapestryExtractLanguageAction extends DumbAwareAction {
 
         String[] words = translationText.split(" ");
 
-        if(words.length > 15) {
+        if(words.length > 10) {
             words = Arrays.copyOfRange(words, 0, 10);
         }
 
