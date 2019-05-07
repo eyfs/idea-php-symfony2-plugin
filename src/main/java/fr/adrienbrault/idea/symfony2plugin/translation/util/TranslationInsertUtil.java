@@ -75,16 +75,16 @@ public class TranslationInsertUtil {
 
         XmlElementFactory instance = XmlElementFactory.getInstance(xmlFile.getProject());
 
+        XmlTag newFileTag = null;
+
         if(file == null) {
-            XmlTag newFileTag = instance.createTagFromText("<file/>");
+            newFileTag = instance.createTagFromText("<file/>");
             newFileTag.setAttribute("source-language", "en-GB");
             newFileTag.setAttribute("datatype", "plaintext");
             newFileTag.setAttribute("original", domain);
 
             XmlTag newBodyTag = instance.createTagFromText("<body/>");
             newFileTag.addSubTag(newBodyTag, true);
-
-            rootTag.addSubTag(newFileTag, false);
 
             file = newFileTag;
         }
@@ -111,7 +111,13 @@ public class TranslationInsertUtil {
 
             XmlTag body = file.findFirstSubTag("body");
             if(body != null) {
-                return func12.apply(body);
+                XmlTag ret = func12.apply(body);
+
+                if (newFileTag != null) {
+                    rootTag.addSubTag(newFileTag, false);
+                }
+
+                return ret;
             }
         } else if(version.equalsIgnoreCase("2.0")) {
             Function<XmlTag, XmlTag> func20 = body -> {
