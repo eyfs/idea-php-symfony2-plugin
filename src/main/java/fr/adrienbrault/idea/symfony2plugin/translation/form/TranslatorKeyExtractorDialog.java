@@ -94,6 +94,8 @@ public class TranslatorKeyExtractorDialog extends JDialog {
             .createPanel()
         );
 
+        textTranslationKey.selectAll();
+
     }
 
     private void filterList(String domainName) {

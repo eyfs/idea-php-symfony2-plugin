@@ -27,6 +27,7 @@ import fr.adrienbrault.idea.symfony2plugin.translation.dict.TranslationUtil;
 import fr.adrienbrault.idea.symfony2plugin.translation.form.TranslatorKeyExtractorDialog;
 import fr.adrienbrault.idea.symfony2plugin.translation.util.TranslationInsertUtil;
 import fr.adrienbrault.idea.symfony2plugin.util.IdeHelper;
+import org.apache.commons.lang.StringUtils;
 
 import java.awt.*;
 import java.util.List;
@@ -161,10 +162,13 @@ public class TapestryExtractLanguageAction extends DumbAwareAction {
         final String defaultDomain = twigFileDomainScope.getDefaultDomain();
         final String reselectedDomain = twigFileDomainScope.getDomain();
 
-        String defaultKey = null;
-        if(translationText.length() < 15) {
-            defaultKey = translationText.toLowerCase().replace(" ", ".");
+        String[] words = translationText.split(" ");
+
+        if(words.length > 15) {
+            words = Arrays.copyOfRange(words, 0, 10);
         }
+
+        String defaultKey = "message." + StringUtils.join(words, '_').toLowerCase();
 
         final int finalStartOffset = startOffset;
         final int finalEndOffset = endOffset;
