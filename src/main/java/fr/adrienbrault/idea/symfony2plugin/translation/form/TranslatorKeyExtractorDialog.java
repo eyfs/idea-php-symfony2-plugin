@@ -18,6 +18,8 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.yaml.psi.YAMLFile;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -39,6 +41,7 @@ public class TranslatorKeyExtractorDialog extends JDialog {
     private JTextField translationNote;
     private JPanel panelTableView;
     private JCheckBox checkNavigateTo;
+    private JLabel keyError;
 
     private final ListTableModel<TranslationFileModel> listTableModel;
     private final OnOkCallback okCallback;
@@ -96,6 +99,8 @@ public class TranslatorKeyExtractorDialog extends JDialog {
 
         textTranslationKey.selectAll();
 
+        setupKeyFieldListener();
+        checkForExistingKey();
     }
 
     private void filterList(String domainName) {
@@ -123,6 +128,11 @@ public class TranslatorKeyExtractorDialog extends JDialog {
     private void onOK() {
         String text = textTranslationKey.getText();
 
+        if (TranslationUtil.hasTranslationKey(this.project, text)) {
+            // key already exists
+            return;
+        }
+
         if(StringUtils.isNotBlank(text)) {
             List<TranslationFileModel> psiFiles = new ArrayList<>();
             for(TranslationFileModel translationFileModel: listTableModel.getItems()) {
@@ -146,6 +156,30 @@ public class TranslatorKeyExtractorDialog extends JDialog {
 
     private void onCancel() {
         dispose();
+    }
+
+    private void setupKeyFieldListener() {
+        textTranslationKey.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) {
+                checkForExistingKey();
+            }
+            public void removeUpdate(DocumentEvent e) {
+                checkForExistingKey();
+            }
+            public void insertUpdate(DocumentEvent e) {
+                checkForExistingKey();
+            }
+        });
+    }
+
+    private void checkForExistingKey() {
+        String text = textTranslationKey.getText();
+
+        if (TranslationUtil.hasTranslationKey(this.project, text)) {
+            keyError.setText("Key already exists");
+        } else {
+            keyError.setText("");
+        }
     }
 
     private class FileNameColumn extends ColumnInfo<TranslationFileModel, String> {
