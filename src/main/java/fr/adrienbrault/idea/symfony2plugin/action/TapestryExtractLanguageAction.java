@@ -168,7 +168,7 @@ public class TapestryExtractLanguageAction extends DumbAwareAction {
             words = Arrays.copyOfRange(words, 0, 10);
         }
 
-        String defaultKey = "message." + StringUtils.join(words, '_').toLowerCase();
+        String defaultKey = "message." + StringUtils.join(words, '_').toLowerCase().replaceAll("[^A-Za-z0-9_]", "");
 
         final int finalStartOffset = startOffset;
         final int finalEndOffset = endOffset;
