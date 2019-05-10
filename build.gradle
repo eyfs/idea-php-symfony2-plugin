@@ -50,11 +50,8 @@ publishPlugin {
 group 'fr.adrienbrault.idea.symfony2plugin'
 
 def details = versionDetails()
-if (details.isCleanTag) {
-    version = "${details.lastTag}"
-} else {
-    version = "${details.lastTag}.${details.gitHash}-SNAPSHOT"
-}
+version = "${details.lastTag}"
+
 
 wrapper {
     gradleVersion '4.3.1'
