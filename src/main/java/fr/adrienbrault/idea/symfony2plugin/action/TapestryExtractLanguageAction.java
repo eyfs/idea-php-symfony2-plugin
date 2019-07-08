@@ -14,6 +14,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.impl.source.PsiFileImpl;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.xml.XmlTokenType;
 import com.intellij.util.containers.ContainerUtil;
@@ -106,7 +107,7 @@ public class TapestryExtractLanguageAction extends DumbAwareAction {
             //return;
         }
 
-        final Project project = ((PsiFileBase) psiFile).getProject();
+        final Project project = ((PsiFileImpl) psiFile).getProject();
         String translationText = editor.getSelectionModel().getSelectedText();
 
         int startOffset;
@@ -217,7 +218,13 @@ public class TapestryExtractLanguageAction extends DumbAwareAction {
                 if (elementType == PhpTokenTypes.STRING_LITERAL || elementType == PhpTokenTypes.STRING_LITERAL_SINGLE_QUOTE) {
                     insertString = String.format("t('%s')", keyName);
                 } else {
-                    insertString = String.format("{{ t('%s') }}", keyName);
+                    String fileType = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument()).getFileType().getName();
+
+                    if (fileType.equals("Vue.js")) {
+                        insertString = String.format("{{ $t('%s') }}", keyName);
+                    } else {
+                        insertString = String.format("{{ t('%s') }}", keyName);
+                    }
                 }
 
                 editor.getDocument().replaceString(finalStartOffset, finalEndOffset, insertString);
