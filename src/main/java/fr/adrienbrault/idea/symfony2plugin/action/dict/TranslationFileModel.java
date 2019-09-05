@@ -16,8 +16,17 @@ public class TranslationFileModel {
     private SymfonyBundle symfonyBundle;
     private boolean boldness = false;
 
+    private String[] notAutoChecked = {"en_au"};
+
     public TranslationFileModel(PsiFile psiFile) {
         this.psiFile = psiFile;
+
+        for (String lang: notAutoChecked) {
+            if (this.psiFile.getVirtualFile().getCanonicalPath().contains(lang)) {
+                enabled = false;
+                break;
+            }
+        }
     }
 
     public PsiFile getPsiFile() {
